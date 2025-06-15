@@ -52,7 +52,15 @@
             }
             .logo { width: 42%; max-width: 42%; margin: 0 auto 12px auto; }
             .lut-list { gap: 6px; }
-            .lut-btn, .file-btn, .export-btn { font-size: 15px; min-width: 44px; min-height: 40px; padding: 12px 0; }
+            .lut-btn, .file-btn, .export-btn { 
+                font-size: 15px; 
+                min-width: 44px; 
+                min-height: 50px; 
+                padding: 12px 0; 
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
         }
     </style>
     <!-- Minimal custom WebGL 3D LUT solution, no external JS libraries -->
@@ -391,14 +399,51 @@ function exportImage() {
         String(now.getSeconds()).padStart(2, '0');
     link.download = `signature-${date}-${time}.png`;
     
-    // Ensure we're getting the full image data
-    try {
-        link.href = tempCanvas.toDataURL('image/png', 1.0);
-        link.click();
-    } catch (e) {
-        console.error('Export failed:', e);
-        alert('Failed to export image. Please try again.');
+    // Function to compress image
+    function compressImage(quality) {
+        return new Promise((resolve, reject) => {
+            try {
+                // Calculate target size (4.5MB to be safe)
+                const maxSize = 4.5 * 1024 * 1024;
+                let dataUrl = tempCanvas.toDataURL('image/jpeg', quality);
+                
+                // If size is already under limit, use PNG
+                if (dataUrl.length * 0.75 <= maxSize) {
+                    dataUrl = tempCanvas.toDataURL('image/png', 1.0);
+                }
+                
+                // If still too big, resize the canvas
+                if (dataUrl.length * 0.75 > maxSize) {
+                    const scale = Math.sqrt(maxSize / (dataUrl.length * 0.75));
+                    const newWidth = Math.floor(tempCanvas.width * scale);
+                    const newHeight = Math.floor(tempCanvas.height * scale);
+                    
+                    const resizedCanvas = document.createElement('canvas');
+                    resizedCanvas.width = newWidth;
+                    resizedCanvas.height = newHeight;
+                    const resizedCtx = resizedCanvas.getContext('2d');
+                    resizedCtx.drawImage(tempCanvas, 0, 0, newWidth, newHeight);
+                    
+                    dataUrl = resizedCanvas.toDataURL('image/jpeg', quality);
+                }
+                
+                resolve(dataUrl);
+            } catch (e) {
+                reject(e);
+            }
+        });
     }
+    
+    // Try to export with compression
+    compressImage(0.8)
+        .then(dataUrl => {
+            link.href = dataUrl;
+            link.click();
+        })
+        .catch(e => {
+            console.error('Export failed:', e);
+            alert('Failed to export image. Please try again.');
+        });
 }
 
 function takePicture() {
