@@ -103,7 +103,11 @@ let lutMap = {
 };
 let lutObj = {};
 let canvas = document.getElementById('canvas');
-let gl = canvas.getContext('webgl2');
+let gl = canvas.getContext('webgl2', {
+    preserveDrawingBuffer: true,
+    alpha: true,
+    premultipliedAlpha: false
+});
 let fileInput = document.getElementById('fileInput');
 let dropZone = document.getElementById('drop-zone');
 let currentLUT = null;
@@ -366,7 +370,10 @@ function exportImage() {
     let tempCanvas = document.createElement('canvas');
     tempCanvas.width = canvas.width;
     tempCanvas.height = canvas.height;
-    let tempCtx = tempCanvas.getContext('2d');
+    let tempCtx = tempCanvas.getContext('2d', { alpha: true });
+    
+    // Preserve the current WebGL state
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     
     // Draw the WebGL canvas content to the temporary canvas
     tempCtx.drawImage(canvas, 0, 0);
@@ -381,8 +388,15 @@ function exportImage() {
         String(now.getMinutes()).padStart(2, '0') +
         String(now.getSeconds()).padStart(2, '0');
     link.download = `signature-${date}-${time}.png`;
-    link.href = tempCanvas.toDataURL('image/png');
-    link.click();
+    
+    // Ensure we're getting the full image data
+    try {
+        link.href = tempCanvas.toDataURL('image/png', 1.0);
+        link.click();
+    } catch (e) {
+        console.error('Export failed:', e);
+        alert('Failed to export image. Please try again.');
+    }
 }
 
 // Create grain texture at startup
