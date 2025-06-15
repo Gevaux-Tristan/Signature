@@ -29,11 +29,12 @@
         }
         .control-group input[type=range] { 
             width: 100%; 
-            touch-action: pan-x;
+            touch-action: none;
             -webkit-appearance: none;
             background: transparent;
             margin: 0;
             padding: 0;
+            pointer-events: none;
         }
         .control-group input[type=range]::-webkit-slider-thumb {
             -webkit-appearance: none;
@@ -44,6 +45,7 @@
             cursor: pointer;
             margin-top: -10px;
             box-shadow: 0 0 2px rgba(0,0,0,0.3);
+            pointer-events: auto;
         }
         .control-group input[type=range]::-webkit-slider-runnable-track {
             width: 100%;
@@ -51,6 +53,7 @@
             background: #333;
             border-radius: 2px;
             cursor: default;
+            pointer-events: none;
         }
         .control-group input[type=range]::-moz-range-thumb {
             width: 24px;
@@ -60,6 +63,7 @@
             cursor: pointer;
             border: none;
             box-shadow: 0 0 2px rgba(0,0,0,0.3);
+            pointer-events: auto;
         }
         .control-group input[type=range]::-moz-range-track {
             width: 100%;
@@ -67,6 +71,7 @@
             background: #333;
             border-radius: 2px;
             cursor: default;
+            pointer-events: none;
         }
         .control-group input[type=range]:focus {
             outline: none;
