@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Signature - Photo app</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#000000">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -121,13 +121,14 @@
             min-width: 120px;
             height: auto;
             opacity: 0.4;
-            display: none;
+            display: block;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            z-index: 1;
         }
-        .mark.visible {
-            display: block;
+        .mark.hidden {
+            display: none;
         }
         @media (max-width: 700px) {
             html, body { height: 100dvh; overflow-x: hidden; overflow-y: hidden; }
@@ -177,7 +178,7 @@
 <div class="container">
     <div class="left" style="position:relative;">
         <canvas id="canvas"></canvas>
-        <img src="mark.svg" alt="Signature Mark" class="mark">
+        <img src="./mark.svg" alt="Signature Mark" class="mark" onerror="console.error('Failed to load mark.svg')">
         <div id="drop-zone">Drop image here</div>
     </div>
     <div class="right">
@@ -441,10 +442,10 @@ function createGrainTexture(size = 128) {
 
 function render() {
     if (!image) {
-        document.querySelector('.mark').classList.add('visible');
+        document.querySelector('.mark').classList.remove('hidden');
         return;
     }
-    document.querySelector('.mark').classList.remove('visible');
+    document.querySelector('.mark').classList.add('hidden');
     if (!program) setupProgram();
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
