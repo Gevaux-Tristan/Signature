@@ -67,6 +67,8 @@
         <img src="logo.svg" alt="Signature Logo" class="logo" aria-label="Signature Logo">
         <button class="file-btn" onclick="fileInput.click()" aria-label="Import Image">Import Image</button>
         <input type="file" id="fileInput" accept="image/*" style="display:none" aria-label="Image File Input">
+        <button class="file-btn" onclick="takePicture()" aria-label="Take Picture">Take Picture</button>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none" aria-label="Camera Input">
         <div class="control-group">
             <label for="lutList">LUT</label>
             <div class="lut-list" id="lutList" role="group" aria-label="LUT Selection"></div>
@@ -398,6 +400,29 @@ function exportImage() {
         alert('Failed to export image. Please try again.');
     }
 }
+
+function takePicture() {
+    let cameraInput = document.getElementById('cameraInput');
+    cameraInput.click();
+}
+
+cameraInput.onchange = e => {
+    if (e.target.files && e.target.files[0]) {
+        let reader = new FileReader();
+        reader.onload = evt => {
+            let img = new window.Image();
+            img.onload = () => {
+                image = img;
+                canvas.width = img.width;
+                canvas.height = img.height;
+                createTexture();
+                render();
+            };
+            img.src = evt.target.result;
+        };
+        reader.readAsDataURL(e.target.files[0]);
+    }
+};
 
 // Create grain texture at startup
 window.addEventListener('DOMContentLoaded', () => {
