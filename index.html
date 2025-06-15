@@ -7,7 +7,7 @@
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
     <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-    <link rel="manifest" href="site.webmanifest">
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@400;700&display=swap" rel="stylesheet">
     <style>
@@ -120,12 +120,13 @@
                 position: fixed;
                 bottom: 0; left: 0; width: 100vw; max-height: 40dvh;
                 overflow-y: auto; z-index: 2; background: #181818;
-                padding: 18px 8px; gap: 16px;
+                padding: 18px 24px; gap: 16px;
             }
             .logo { width: 42%; max-width: 42%; margin: 0 auto 12px auto; }
             .lut-list { 
                 gap: 12px;
                 margin-bottom: 8px;
+                padding: 0 4px;
             }
             .lut-btn { 
                 font-size: 15px; 
@@ -135,6 +136,9 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
+            }
+            .control-group {
+                padding: 0 4px;
             }
         }
     </style>
