@@ -362,6 +362,16 @@ function render() {
 }
 
 function exportImage() {
+    // Create a temporary canvas to capture the WebGL content
+    let tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    let tempCtx = tempCanvas.getContext('2d');
+    
+    // Draw the WebGL canvas content to the temporary canvas
+    tempCtx.drawImage(canvas, 0, 0);
+    
+    // Create download link
     let link = document.createElement('a');
     let now = new Date();
     let date = now.getFullYear().toString() +
@@ -371,7 +381,7 @@ function exportImage() {
         String(now.getMinutes()).padStart(2, '0') +
         String(now.getSeconds()).padStart(2, '0');
     link.download = `signature-${date}-${time}.png`;
-    link.href = canvas.toDataURL('image/png');
+    link.href = tempCanvas.toDataURL('image/png');
     link.click();
 }
 
