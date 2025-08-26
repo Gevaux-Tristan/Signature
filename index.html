@@ -217,15 +217,8 @@
             <input type="range" id="blur" min="0" max="1" step="0.01" value="0" aria-label="Vintage Blur">
         </div>
         <div class="control-group">
-            <label for="cursorBlurEnable">Focus Blur (cursor)</label>
-            <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
-                <input type="checkbox" id="cursorBlurEnable" aria-label="Enable Cursor Focus Blur">
-                <span style="font-size:12px;color:#aaa;">Enable</span>
-            </div>
-            <label for="cursorRadius">Focus Area</label>
-            <input type="range" id="cursorRadius" min="0.02" max="0.35" step="0.01" value="0.15" aria-label="Cursor Blur Radius">
-            <label for="cursorStrength">Blur Strength</label>
-            <input type="range" id="cursorStrength" min="0" max="1" step="0.01" value="0.6" aria-label="Cursor Blur Strength">
+            <label for="focusBlur">Focus Blur</label>
+            <input type="range" id="focusBlur" min="0" max="1" step="0.01" value="0" aria-label="Focus Blur">
         </div>
         <button class="export-btn" onclick="exportImage()" aria-label="Export Image">Export Image</button>
     </div>
@@ -338,17 +331,10 @@ canvas.ondrop = e => {
     }
 };
 
-['contrast','saturation','grain','exposure','blur'].forEach(id => {
+['contrast','saturation','grain','exposure','blur','focusBlur'].forEach(id => {
     document.getElementById(id).oninput = render;
 });
 
-// Cursor blur controls
-['cursorRadius','cursorStrength'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.oninput = render;
-});
-const cursorEnableEl = document.getElementById('cursorBlurEnable');
-if (cursorEnableEl) cursorEnableEl.onchange = () => { cursorActive = cursorEnableEl.checked ? 1 : 0; render(); };
 
 // Track cursor/touch over canvas in UV space
 function updateCursorFromClient(clientX, clientY) {
@@ -361,19 +347,25 @@ function updateCursorFromClient(clientX, clientY) {
 canvas.addEventListener('mousemove', (e) => {
     if (!image) return;
     updateCursorFromClient(e.clientX, e.clientY);
-    if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
+    const fv = parseFloat(document.getElementById('focusBlur').value || '0');
+    cursorActive = fv > 0 ? 1 : 0;
+    render();
 });
 canvas.addEventListener('mouseleave', () => { cursorActive = 0; render(); });
 // Pointer events (better mobile support)
 canvas.addEventListener('pointerdown', (e) => {
     if (!image) return;
     updateCursorFromClient(e.clientX, e.clientY);
-    if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
+    const fv = parseFloat(document.getElementById('focusBlur').value || '0');
+    cursorActive = fv > 0 ? 1 : 0;
+    render();
 });
 canvas.addEventListener('pointermove', (e) => {
     if (!image) return;
     updateCursorFromClient(e.clientX, e.clientY);
-    if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
+    const fv = parseFloat(document.getElementById('focusBlur').value || '0');
+    cursorActive = fv > 0 ? 1 : 0;
+    render();
 });
 canvas.addEventListener('pointerup', () => { cursorActive = 0; render(); });
 canvas.addEventListener('pointerleave', () => { cursorActive = 0; render(); });
@@ -382,7 +374,9 @@ canvas.addEventListener('touchstart', (e) => {
     if (!image) return;
     if (e.touches && e.touches.length > 0) {
         updateCursorFromClient(e.touches[0].clientX, e.touches[0].clientY);
-        if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
+        const fv = parseFloat(document.getElementById('focusBlur').value || '0');
+        cursorActive = fv > 0 ? 1 : 0;
+        render();
     }
 }, { passive: true });
 canvas.addEventListener('touchmove', (e) => {
@@ -390,7 +384,9 @@ canvas.addEventListener('touchmove', (e) => {
     if (e.touches && e.touches.length > 0) {
         e.preventDefault();
         updateCursorFromClient(e.touches[0].clientX, e.touches[0].clientY);
-        if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
+        const fv = parseFloat(document.getElementById('focusBlur').value || '0');
+        cursorActive = fv > 0 ? 1 : 0;
+        render();
     }
 }, { passive: false });
 canvas.addEventListener('touchend', () => { cursorActive = 0; render(); }, { passive: true });
@@ -560,13 +556,15 @@ function render() {
     gl.uniform1f(gl.getUniformLocation(program, 'u_grain'), parseFloat(document.getElementById('grain').value));
     gl.uniform1f(gl.getUniformLocation(program, 'u_exposure'), parseFloat(document.getElementById('exposure').value));
     gl.uniform1f(gl.getUniformLocation(program, 'u_blur'), parseFloat(document.getElementById('blur').value));
-    // Cursor blur uniforms
-    const rEl = document.getElementById('cursorRadius');
-    const sEl = document.getElementById('cursorStrength');
+    // Cursor blur uniforms from single Focus Blur control
+    const fv = parseFloat(document.getElementById('focusBlur').value || '0');
     gl.uniform2f(gl.getUniformLocation(program, 'u_cursorPos'), cursorPos.x, cursorPos.y);
-    gl.uniform1f(gl.getUniformLocation(program, 'u_cursorRadius'), rEl ? parseFloat(rEl.value) : 0.15);
-    gl.uniform1f(gl.getUniformLocation(program, 'u_cursorStrength'), sEl ? parseFloat(sEl.value) : 0.6);
-    gl.uniform1i(gl.getUniformLocation(program, 'u_cursorActive'), cursorActive);
+    // Map slider to radius and strength for a simple UX
+    const floatRadius = 0.05 + fv * 0.25; // 0.05 .. 0.30
+    const floatStrength = fv;             // 0 .. 1
+    gl.uniform1f(gl.getUniformLocation(program, 'u_cursorRadius'), floatRadius);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_cursorStrength'), floatStrength);
+    gl.uniform1i(gl.getUniformLocation(program, 'u_cursorActive'), cursorActive && fv > 0 ? 1 : 0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     if (lutTex) gl.deleteTexture(lutTex);
     gl.deleteBuffer(positionBuffer);
