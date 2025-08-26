@@ -347,35 +347,27 @@ function updateCursorFromClient(clientX, clientY) {
 canvas.addEventListener('mousemove', (e) => {
     if (!image) return;
     updateCursorFromClient(e.clientX, e.clientY);
-    const fv = parseFloat(document.getElementById('focusBlur').value || '0');
-    cursorActive = fv > 0 ? 1 : 0;
     render();
 });
-canvas.addEventListener('mouseleave', () => { cursorActive = 0; render(); });
+canvas.addEventListener('mouseleave', () => { render(); });
 // Pointer events (better mobile support)
 canvas.addEventListener('pointerdown', (e) => {
     if (!image) return;
     updateCursorFromClient(e.clientX, e.clientY);
-    const fv = parseFloat(document.getElementById('focusBlur').value || '0');
-    cursorActive = fv > 0 ? 1 : 0;
     render();
 });
 canvas.addEventListener('pointermove', (e) => {
     if (!image) return;
     updateCursorFromClient(e.clientX, e.clientY);
-    const fv = parseFloat(document.getElementById('focusBlur').value || '0');
-    cursorActive = fv > 0 ? 1 : 0;
     render();
 });
-canvas.addEventListener('pointerup', () => { cursorActive = 0; render(); });
-canvas.addEventListener('pointerleave', () => { cursorActive = 0; render(); });
+canvas.addEventListener('pointerup', () => { render(); });
+canvas.addEventListener('pointerleave', () => { render(); });
 // Touch fallback
 canvas.addEventListener('touchstart', (e) => {
     if (!image) return;
     if (e.touches && e.touches.length > 0) {
         updateCursorFromClient(e.touches[0].clientX, e.touches[0].clientY);
-        const fv = parseFloat(document.getElementById('focusBlur').value || '0');
-        cursorActive = fv > 0 ? 1 : 0;
         render();
     }
 }, { passive: true });
@@ -384,12 +376,10 @@ canvas.addEventListener('touchmove', (e) => {
     if (e.touches && e.touches.length > 0) {
         e.preventDefault();
         updateCursorFromClient(e.touches[0].clientX, e.touches[0].clientY);
-        const fv = parseFloat(document.getElementById('focusBlur').value || '0');
-        cursorActive = fv > 0 ? 1 : 0;
         render();
     }
 }, { passive: false });
-canvas.addEventListener('touchend', () => { cursorActive = 0; render(); }, { passive: true });
+canvas.addEventListener('touchend', () => { render(); }, { passive: true });
 
 async function loadCubeLUT(url) {
     let resp = await fetch(url);
@@ -564,7 +554,7 @@ function render() {
     const floatStrength = fv;             // 0 .. 1
     gl.uniform1f(gl.getUniformLocation(program, 'u_cursorRadius'), floatRadius);
     gl.uniform1f(gl.getUniformLocation(program, 'u_cursorStrength'), floatStrength);
-    gl.uniform1i(gl.getUniformLocation(program, 'u_cursorActive'), cursorActive && fv > 0 ? 1 : 0);
+    gl.uniform1i(gl.getUniformLocation(program, 'u_cursorActive'), fv > 0 ? 1 : 0);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     if (lutTex) gl.deleteTexture(lutTex);
     gl.deleteBuffer(positionBuffer);
