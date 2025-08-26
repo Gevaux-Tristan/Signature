@@ -1,0 +1,26 @@
+{
+  "name": "signature-photo-app",
+  "version": "1.0.0",
+  "description": "A photo editing app with LUT support and focus blur effects",
+  "main": "index.html",
+  "scripts": {
+    "build": "npm run copy-files && npm run minify",
+    "copy-files": "mkdir -p dist && cp -r *.html *.svg *.png *.ico *.json *.webmanifest dist/ && cp -r luts dist/",
+    "minify": "echo 'Build complete'",
+    "dev": "python3 -m http.server 8000",
+    "start": "python3 -m http.server 8000"
+  },
+  "keywords": [
+    "photo",
+    "editing",
+    "webgl",
+    "lut",
+    "focus-blur"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
