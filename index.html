@@ -350,23 +350,50 @@ canvas.ondrop = e => {
 const cursorEnableEl = document.getElementById('cursorBlurEnable');
 if (cursorEnableEl) cursorEnableEl.onchange = () => { cursorActive = cursorEnableEl.checked ? 1 : 0; render(); };
 
-// Track cursor over canvas in UV space
-canvas.addEventListener('mousemove', (e) => {
-    if (!image) return;
+// Track cursor/touch over canvas in UV space
+function updateCursorFromClient(clientX, clientY) {
     const rect = canvas.getBoundingClientRect();
-    const ux = (e.clientX - rect.left) / rect.width;
-    const uy = (e.clientY - rect.top) / rect.height;
+    const ux = (clientX - rect.left) / rect.width;
+    const uy = (clientY - rect.top) / rect.height;
     cursorPos.x = Math.min(1, Math.max(0, ux));
     cursorPos.y = 1.0 - Math.min(1, Math.max(0, uy));
-    if (cursorEnableEl && cursorEnableEl.checked) {
-        cursorActive = 1;
-        render();
+}
+canvas.addEventListener('mousemove', (e) => {
+    if (!image) return;
+    updateCursorFromClient(e.clientX, e.clientY);
+    if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
+});
+canvas.addEventListener('mouseleave', () => { cursorActive = 0; render(); });
+// Pointer events (better mobile support)
+canvas.addEventListener('pointerdown', (e) => {
+    if (!image) return;
+    updateCursorFromClient(e.clientX, e.clientY);
+    if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
+});
+canvas.addEventListener('pointermove', (e) => {
+    if (!image) return;
+    updateCursorFromClient(e.clientX, e.clientY);
+    if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
+});
+canvas.addEventListener('pointerup', () => { cursorActive = 0; render(); });
+canvas.addEventListener('pointerleave', () => { cursorActive = 0; render(); });
+// Touch fallback
+canvas.addEventListener('touchstart', (e) => {
+    if (!image) return;
+    if (e.touches && e.touches.length > 0) {
+        updateCursorFromClient(e.touches[0].clientX, e.touches[0].clientY);
+        if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
     }
-});
-canvas.addEventListener('mouseleave', () => {
-    cursorActive = 0;
-    render();
-});
+}, { passive: true });
+canvas.addEventListener('touchmove', (e) => {
+    if (!image) return;
+    if (e.touches && e.touches.length > 0) {
+        e.preventDefault();
+        updateCursorFromClient(e.touches[0].clientX, e.touches[0].clientY);
+        if (cursorEnableEl && cursorEnableEl.checked) { cursorActive = 1; render(); }
+    }
+}, { passive: false });
+canvas.addEventListener('touchend', () => { cursorActive = 0; render(); }, { passive: true });
 
 async function loadCubeLUT(url) {
     let resp = await fetch(url);
