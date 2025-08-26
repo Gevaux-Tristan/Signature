@@ -216,6 +216,17 @@
             <label for="blur">Vintage Blur</label>
             <input type="range" id="blur" min="0" max="1" step="0.01" value="0" aria-label="Vintage Blur">
         </div>
+        <div class="control-group">
+            <label for="cursorBlurEnable">Focus Blur (cursor)</label>
+            <div style="display:flex; gap:12px; align-items:center; margin-bottom:8px;">
+                <input type="checkbox" id="cursorBlurEnable" aria-label="Enable Cursor Focus Blur">
+                <span style="font-size:12px;color:#aaa;">Enable</span>
+            </div>
+            <label for="cursorRadius">Focus Area</label>
+            <input type="range" id="cursorRadius" min="0.02" max="0.35" step="0.01" value="0.15" aria-label="Cursor Blur Radius">
+            <label for="cursorStrength">Blur Strength</label>
+            <input type="range" id="cursorStrength" min="0" max="1" step="0.01" value="0.6" aria-label="Cursor Blur Strength">
+        </div>
         <button class="export-btn" onclick="exportImage()" aria-label="Export Image">Export Image</button>
     </div>
 </div>
@@ -243,6 +254,8 @@ let currentLUT = null;
 let currentTexture = null;
 let program = null;
 let grainTexture = null;
+let cursorPos = { x: 0.5, y: 0.5 };
+let cursorActive = 0;
 
 // --- LUT Loader (new, robust) ---
 const lutFiles = [
@@ -329,6 +342,32 @@ canvas.ondrop = e => {
     document.getElementById(id).oninput = render;
 });
 
+// Cursor blur controls
+['cursorRadius','cursorStrength'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.oninput = render;
+});
+const cursorEnableEl = document.getElementById('cursorBlurEnable');
+if (cursorEnableEl) cursorEnableEl.onchange = () => { cursorActive = cursorEnableEl.checked ? 1 : 0; render(); };
+
+// Track cursor over canvas in UV space
+canvas.addEventListener('mousemove', (e) => {
+    if (!image) return;
+    const rect = canvas.getBoundingClientRect();
+    const ux = (e.clientX - rect.left) / rect.width;
+    const uy = (e.clientY - rect.top) / rect.height;
+    cursorPos.x = Math.min(1, Math.max(0, ux));
+    cursorPos.y = 1.0 - Math.min(1, Math.max(0, uy));
+    if (cursorEnableEl && cursorEnableEl.checked) {
+        cursorActive = 1;
+        render();
+    }
+});
+canvas.addEventListener('mouseleave', () => {
+    cursorActive = 0;
+    render();
+});
+
 async function loadCubeLUT(url) {
     let resp = await fetch(url);
     let text = await resp.text();
@@ -412,7 +451,7 @@ function getShader(type, source) {
 function setupProgram() {
     if (program) gl.deleteProgram(program);
     let vs = getShader(gl.VERTEX_SHADER, `#version 300 es\nin vec2 a_position;\nin vec2 a_texCoord;\nout vec2 v_texCoord;\nvoid main() {\n    gl_Position = vec4(a_position, 0, 1);\n    v_texCoord = a_texCoord;\n}`);
-    let fs = getShader(gl.FRAGMENT_SHADER, `#version 300 es\nprecision highp float;\nprecision highp sampler3D;\nuniform sampler2D u_image;\nuniform sampler3D u_lut;\nuniform int u_useLut;\nuniform int u_lutSize;\nuniform float u_contrast;\nuniform float u_saturation;\nuniform float u_grain;\nuniform float u_exposure;\nuniform float u_blur;\nuniform sampler2D u_grainTex;\nin vec2 v_texCoord;\nout vec4 outColor;\nvec3 applyLut3D(vec3 color) {\n    if (u_useLut == 0) return color;\n    float size = float(u_lutSize);\n    vec3 coord = clamp(color * (size - 1.0) / size + 0.5 / size, 0.0, 1.0);\n    return texture(u_lut, coord).rgb;\n}\nvec4 applyRadialBlur(vec2 uv, float strength) {\n    if (strength <= 0.0) return texture(u_image, uv);\n    vec2 center = vec2(0.5, 0.5);\n    vec2 dir = normalize(uv - center);\n    float dist = length(uv - center);\n    vec4 color = vec4(0.0);\n    float total = 0.0;\n    float samples = 8.0;\n    float blurRadius = strength * 0.1;\n    for(float i = 0.0; i < samples; i++) {\n        float t = i / (samples - 1.0);\n        float radius = t * blurRadius * (1.0 + dist * 2.0);\n        vec2 offset = dir * radius;\n        vec2 sampleUV = uv + offset;\n        if(sampleUV.x >= 0.0 && sampleUV.x <= 1.0 && sampleUV.y >= 0.0 && sampleUV.y <= 1.0) {\n            color += texture(u_image, sampleUV);\n            total += 1.0;\n        }\n    }\n    return color / total;\n}\nvoid main() {\n    vec4 color = applyRadialBlur(v_texCoord, u_blur);\n    // Exposure\n    color.rgb *= pow(2.0, u_exposure);\n    // Contrast\n    float contrast = u_contrast + 1.0;\n    color.rgb = (color.rgb - 0.5) * contrast + 0.5;\n    // Saturation\n    float gray = dot(color.rgb, vec3(0.2989, 0.5870, 0.1140));\n    color.rgb = mix(vec3(gray), color.rgb, u_saturation);\n    // LUT\n    color.rgb = applyLut3D(color.rgb);\n    // Texture-based photographic grain\n    float grain = (texture(u_grainTex, gl_FragCoord.xy / 128.0).r - 0.5) * u_grain * 0.5;\n    color.rgb += grain;\n    outColor = color;\n}`);
+    let fs = getShader(gl.FRAGMENT_SHADER, `#version 300 es\nprecision highp float;\nprecision highp sampler3D;\nuniform sampler2D u_image;\nuniform sampler3D u_lut;\nuniform int u_useLut;\nuniform int u_lutSize;\nuniform float u_contrast;\nuniform float u_saturation;\nuniform float u_grain;\nuniform float u_exposure;\nuniform float u_blur;\nuniform sampler2D u_grainTex;\nuniform vec2 u_cursorPos;\nuniform float u_cursorRadius;\nuniform float u_cursorStrength;\nuniform int u_cursorActive;\nin vec2 v_texCoord;\nout vec4 outColor;\nvec3 applyLut3D(vec3 color) {\n    if (u_useLut == 0) return color;\n    float size = float(u_lutSize);\n    vec3 coord = clamp(color * (size - 1.0) / size + 0.5 / size, 0.0, 1.0);\n    return texture(u_lut, coord).rgb;\n}\nvec4 applyRadialBlur(vec2 uv, float strength) {\n    if (strength <= 0.0) return texture(u_image, uv);\n    vec2 center = vec2(0.5, 0.5);\n    vec2 dir = normalize(uv - center);\n    float dist = length(uv - center);\n    vec4 color = vec4(0.0);\n    float total = 0.0;\n    float samples = 8.0;\n    float blurRadius = strength * 0.1;\n    for(float i = 0.0; i < samples; i++) {\n        float t = i / (samples - 1.0);\n        float radius = t * blurRadius * (1.0 + dist * 2.0);\n        vec2 offset = dir * radius;\n        vec2 sampleUV = uv + offset;\n        if(sampleUV.x >= 0.0 && sampleUV.x <= 1.0 && sampleUV.y >= 0.0 && sampleUV.y <= 1.0) {\n            color += texture(u_image, sampleUV);\n            total += 1.0;\n        }\n    }\n    return color / max(total, 1.0);\n}\nvec3 gaussianBlurAt(vec2 uv, float sigma) {\n    vec2 texel = 1.0 / vec2(textureSize(u_image, 0));\n    vec3 sumH = vec3(0.0);\n    float wSumH = 0.0;\n    for (int x = -4; x <= 4; x++) {\n        float fx = float(x);\n        float w = exp(-(fx*fx) / (2.0 * sigma * sigma));\n        sumH += texture(u_image, uv + vec2(fx, 0.0) * texel).rgb * w;\n        wSumH += w;\n    }\n    vec3 horiz = sumH / max(wSumH, 1e-5);\n    vec3 sumV = vec3(0.0);\n    float wSumV = 0.0;\n    for (int y = -4; y <= 4; y++) {\n        float fy = float(y);\n        float w = exp(-(fy*fy) / (2.0 * sigma * sigma));\n        sumV += texture(u_image, uv + vec2(0.0, fy) * texel).rgb * w;\n        wSumV += w;\n    }\n    vec3 vert = sumV / max(wSumV, 1e-5);\n    return 0.5 * (horiz + vert);\n}\nvoid main() {\n    vec4 base = texture(u_image, v_texCoord);\n    // Cursor Gaussian blur influence\n    float influence = 0.0;\n    if (u_cursorActive == 1) {\n        float d = distance(v_texCoord, u_cursorPos);\n        influence = 1.0 - smoothstep(0.0, u_cursorRadius, d);\n    }\n    vec3 cursorBlurred = base.rgb;\n    if (influence > 0.0) {\n        float sigma = 1.0 + u_cursorStrength * 6.0 * influence;\n        cursorBlurred = gaussianBlurAt(v_texCoord, sigma);\n    }\n    vec4 mixedCursor = vec4(mix(base.rgb, cursorBlurred, influence), 1.0);\n    // Radial blur (vintage) blended on top\n    vec4 radial = applyRadialBlur(v_texCoord, u_blur);\n    vec4 color = mix(mixedCursor, radial, clamp(u_blur, 0.0, 1.0));\n    // Exposure\n    color.rgb *= pow(2.0, u_exposure);\n    // Contrast\n    float contrast = u_contrast + 1.0;\n    color.rgb = (color.rgb - 0.5) * contrast + 0.5;\n    // Saturation\n    float gray = dot(color.rgb, vec3(0.2989, 0.5870, 0.1140));\n    color.rgb = mix(vec3(gray), color.rgb, u_saturation);\n    // LUT\n    color.rgb = applyLut3D(color.rgb);\n    // Texture-based photographic grain\n    float grain = (texture(u_grainTex, gl_FragCoord.xy / 128.0).r - 0.5) * u_grain * 0.5;\n    color.rgb += grain;\n    outColor = color;\n}`);
     program = gl.createProgram();
     gl.attachShader(program, vs);
     gl.attachShader(program, fs);
@@ -494,6 +533,13 @@ function render() {
     gl.uniform1f(gl.getUniformLocation(program, 'u_grain'), parseFloat(document.getElementById('grain').value));
     gl.uniform1f(gl.getUniformLocation(program, 'u_exposure'), parseFloat(document.getElementById('exposure').value));
     gl.uniform1f(gl.getUniformLocation(program, 'u_blur'), parseFloat(document.getElementById('blur').value));
+    // Cursor blur uniforms
+    const rEl = document.getElementById('cursorRadius');
+    const sEl = document.getElementById('cursorStrength');
+    gl.uniform2f(gl.getUniformLocation(program, 'u_cursorPos'), cursorPos.x, cursorPos.y);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_cursorRadius'), rEl ? parseFloat(rEl.value) : 0.15);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_cursorStrength'), sEl ? parseFloat(sEl.value) : 0.6);
+    gl.uniform1i(gl.getUniformLocation(program, 'u_cursorActive'), cursorActive);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     if (lutTex) gl.deleteTexture(lutTex);
     gl.deleteBuffer(positionBuffer);
